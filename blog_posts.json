@@ -1,0 +1,14 @@
+{
+    "posts": [
+        {
+            "post_date": "2023-09-02T14:00:00",
+            "title": "Blog Post Title",
+            "content": "The content of the blog post goes here."
+        },
+        {
+            "post_date": "2023-09-03T14:00:00",
+            "title": "Another Post",
+            "content": "More content for the new blog post."
+        }
+    ]
+}
