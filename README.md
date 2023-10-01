@@ -2,6 +2,8 @@
 
 This GitHub Action automates the process of creating daily blog posts using the Blogger API. The action is scheduled to run every day at 2 pm UTC.
 
+[![Daily Automated Actions](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml/badge.svg)](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml)
+
 ## Workflow
 
 The workflow is defined in the `.github/workflows/daily-automation.yml` file:
