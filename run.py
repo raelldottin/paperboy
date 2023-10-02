@@ -1,89 +1,28 @@
-import os
-import argparse
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-import time
-import functools
-import requests
 import json
+import argparse
+from io import StringIO
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
 from datetime import datetime
+import requests
 
-# Initialize the Blogger API client
-base_url = "https://www.googleapis.com/blogger/v3"
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Create a new blog post.")
-    parser.add_argument(
-        "--credentials",
-        type=str,
-        help="Credentials file content as a JSON string",
-        required=True,
-    )
-    parser.add_argument(
-        "--github-repo", type=str, help="GitHub repository URL", required=True
-    )
-    parser.add_argument(
-        "--json-file",
-        type=str,
-        help="JSON file containing blog post information",
-        required=True,
-    )
-    return parser.parse_args()
+# Blogger API scopes
+SCOPES = ["https://www.googleapis.com/auth/blogger"]
 
 
-def get_blogger_service(credentials):
-    credentials = service_account.Credentials.from_service_account_info(credentials)
-    return build("blogger", "v3", credentials=credentials)
+def authenticate(scopes, client_secret, credentials_json):
+    flow = InstalledAppFlow.from_client_config(client_secret, scopes)
+    credentials = flow.run_local_server(port=0)
+
+    # Save the credentials for the next run
+    credentials_data = credentials.to_json()
+    credentials_json.write(credentials_data)
+
+    return credentials
 
 
-def get_blog_id(blogger_service):
-    try:
-        blogs = blogger_service.blogs().listByUser(userId="self").execute()
-        if "items" in blogs and blogs["items"]:
-            return blogs["items"][0]["id"]
-    except Exception as e:
-        print(f"Error retrieving blog ID: {str(e)}")
-    return None
-
-
-def get_existing_post_titles(blogger_service, blog_id):
-    try:
-        posts = blogger_service.posts().list(blogId=blog_id).execute()
-        existing_titles = set(post["title"] for post in posts.get("items", []))
-        return existing_titles
-    except Exception as e:
-        print(f"Error fetching existing post titles: {str(e)}")
-        return set()
-
-
-def rate_limited(requests_per_minute):
-    interval = 60 / requests_per_minute
-
-    def decorator(func):
-        last_request_time = 0
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            nonlocal last_request_time
-            current_time = time.time()
-            time_since_last_request = current_time - last_request_time
-            if time_since_last_request < interval:
-                time_to_wait = interval - time_since_last_request
-                time.sleep(time_to_wait)
-            last_request_time = time.time()
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-# Rate limit the create_blog_post function to 1 request per minute
-
-
-@rate_limited(1)
-def create_blog_post(blogger_service, title, content, blog_id):
+def create_blog_post(service, blog_id, title, content):
     post_body = {
         "kind": "blogger#post",
         "blog": {
@@ -94,7 +33,7 @@ def create_blog_post(blogger_service, title, content, blog_id):
     }
 
     try:
-        posts = blogger_service.posts()
+        posts = service.posts()
         request = posts.insert(blogId=blog_id, body=post_body)
         response = request.execute()
         print(f'New blog post created with ID: {response["id"]}')
@@ -102,12 +41,21 @@ def create_blog_post(blogger_service, title, content, blog_id):
         print(f"Error creating blog post: {str(e)}")
 
 
+def get_existing_post_titles(service, blog_id):
+    try:
+        posts = service.posts().list(blogId=blog_id).execute()
+        existing_titles = set(post["title"] for post in posts.get("items", []))
+        return existing_titles
+    except Exception as e:
+        print(f"Error fetching existing post titles: {str(e)}")
+        return set()
+
+
 def get_github_file_content(repo_url, file_path):
-    github_api_url = f"https://api.github.com/repos/{repo_url}/contents/{file_path}"
-    response = requests.get(github_api_url)
+    github_raw_url = f"https://raw.githubusercontent.com/{repo_url}/master/{file_path}"
+    response = requests.get(github_raw_url)
     if response.status_code == 200:
-        content_base64 = response.json()["content"]
-        return base64.b64decode(content_base64).decode("utf-8")
+        return response.text
     else:
         print(f"Error fetching content from GitHub: {response.text}")
         return None
@@ -120,37 +68,71 @@ def read_json_file_from_github(repo_url, file_path):
             return json.loads(content)
         except Exception as e:
             print(f"Error parsing JSON content: {str(e)}")
-    return None
 
 
-if __name__ == "__main__":
-    args = parse_args()
+def main():
+    parser = argparse.ArgumentParser(description="Create a new blog post.")
+    parser.add_argument(
+        "--client-secret",
+        type=json.loads,
+        help="Client secret JSON as a string",
+        required=True,
+    )
+    parser.add_argument(
+        "--credentials-json",
+        type=json.loads,
+        help="Credentials JSON as a string",
+        required=True,
+    )
+    parser.add_argument(
+        "--blog-id",
+        type=str,
+        help="Blog ID",
+        required=True,
+    )
+    parser.add_argument(
+        "--github-repo",
+        type=str,
+        help="GitHub repository URL",
+        required=True,
+    )
+    parser.add_argument(
+        "--json-file",
+        type=str,
+        help="JSON file with pending blog posts",
+        required=True,
+    )
 
-    # Use the contents of the credentials file as a string
-    credentials_str = args.credentials
+    args = parser.parse_args()
+
+    credentials_data = StringIO()
+    if "token" in args.credentials_json:
+        # For OAuth 2.0 credentials
+        credentials_data.write(json.dumps(args.credentials_json))
+    else:
+        # For service account credentials
+        json.dump(args.credentials_json, credentials_data)
+
+    credentials_data.seek(0)
+    credentials = Credentials.from_authorized_user_info(
+        json.loads(credentials_data.read()), SCOPES
+    )
 
     # Initialize the Blogger API client
-    blogger_service = get_blogger_service(credentials_str)
+    blogger_service = build("blogger", "v3", credentials=credentials)
 
-    # Get the Blog ID
-    blog_id = get_blog_id(blogger_service)
-    if blog_id is None:
-        print("Unable to retrieve Blog ID. Exiting.")
-        exit(1)
-
-    # Read blog post information from JSON file on GitHub
+    # Get JSON data from GitHub repo
     github_repo = args.github_repo
-    json_file_path = args.json_file
-    blog_posts = read_json_file_from_github(github_repo, json_file_path)
+    json_file = args.json_file
+    json_data = read_json_file_from_github(github_repo, json_file)
 
-    # Fetch existing post titles
-    existing_titles = get_existing_post_titles(blogger_service, blog_id)
-
-    if blog_posts is not None and "posts" in blog_posts:
-        for post in blog_posts["posts"]:
+    if json_data is not None and "posts" in json_data:
+        existing_titles = get_existing_post_titles(blogger_service, args.blog_id)
+        for post in json_data["posts"]:
             title = post.get("title")
             content = post.get("content")
             post_date_str = post.get("post_date")
+            print(f"{title=}")
 
             if title and content and post_date_str:
                 # Check if the title already exists
@@ -165,10 +147,14 @@ if __name__ == "__main__":
                         print(
                             f"Waiting for {time_difference} seconds until {post_date}"
                         )
-                        time.sleep(time_difference)
 
-                    create_blog_post(blogger_service, title, content, blog_id)
+                    else:
+                        create_blog_post(blogger_service, args.blog_id, title, content)
             else:
                 print(
                     f"Skipping post with missing title, content, or post_date: {post}"
                 )
+
+
+if __name__ == "__main__":
+    main()
