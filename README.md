@@ -1,18 +1,27 @@
-# Automated Blog Post Creation
+# GitHub Actions for Daily Automated Blog Posts
 
-This GitHub Action automates the process of creating daily blog posts using the Blogger API. The action is scheduled to run every day at 2 pm UTC.
+This repository contains a GitHub Actions workflow and a Python script to automate the creation of daily blog posts using the Blogger API. The workflow is scheduled to run daily and publishes a new blog post at a specified time.
 
-[![Daily Automated Actions](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml/badge.svg)](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml)
+## GitHub Actions Workflow
 
-## Workflow
+The workflow is defined in the `.github/workflows/daily-run.yml` file. It performs the following steps:
 
-The workflow is defined in the `.github/workflows/daily-automation.yml` file:
+1. **Checkout Repository:** Checks out the repository code.
+2. **Python Setup:** Sets up the Python environment with version 3.9.
+3. **Install Dependencies:** Installs required dependencies defined in `requirements.txt`.
+4. **Automate Blog Posts:** Runs the `run.py` script to create blog posts using specified credentials, JSON file, and GitHub repository.
+
+### Workflow Configuration
 
 ```yaml
 name: Daily Automated Actions
+
 on:
   schedule:
     - cron: '0 14 * * *'
+  push:
+    branches:
+      - main
 
 jobs:
   daily-run:
@@ -35,19 +44,12 @@ jobs:
           pip install -r requirements.txt
       - name: Automate blog posts
         run: |
-          python run.py --credentials "${{ secrets.credentials }}" --json "${{ secrets.json }}" --repo "${{ secrets.repo }}"
+          python run.py --credentials '${{ secrets.credentials }}' --json '${{ secrets.json }}' --repo '${{ secrets.repo }}'
 ```
-
-### Steps:
-
-1. **Checkout Repository:** The action checks out the repository code.
-2. **Python Setup:** It sets up the Python environment with version 3.9.
-3. **Install Dependencies:** Installs the required dependencies defined in `requirements.txt`.
-4. **Automate Blog Posts:** Runs the `run.py` script to automate the creation of blog posts using the specified credentials, JSON file, and GitHub repository.
 
 ## Python Script (`run.py`)
 
-The Python script `run.py` is responsible for interacting with the Blogger API and creating blog posts. It reads blog post information from a JSON file in the specified GitHub repository and schedules posts based on the specified date and time.
+The Python script interacts with the Blogger API and creates blog posts based on information provided in a JSON file. Below are key components of the script:
 
 ```python
 # The content of run.py
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     # Get the Blog ID
     blog_id = get_blog_id(blogger_service)
     if blog_id is None:
-        print("Unable to retrieve Blog ID. Exiting.")
+        print('Unable to retrieve Blog ID. Exiting.')
         exit(1)
 
     # Read blog post information from JSON file on GitHub
@@ -81,8 +83,13 @@ if __name__ == '__main__':
             # ...
 ```
 
-## Configuration
+### Key Script Components
 
-Ensure that the necessary secrets (`credentials`, `json`, `repo`) are configured in the GitHub repository to enable secure communication and access to the required resources.
+- **Parsing Arguments:** The script parses command-line arguments, including credentials, GitHub repository URL, and JSON file path.
+- **Blogger API Initialization:** It initializes the Blogger API client using the provided credentials.
+- **Reading Blog Post Information:** The script reads blog post information from a JSON file in the specified GitHub repository.
+- **Automating Post Creation:** Based on the scheduled date and time, the script automates the creation of blog posts using the Blogger API.
 
-Feel free to customize the workflow and script according to your specific requirements.
+## Conclusion
+
+With this GitHub Actions workflow and Python script, you can effortlessly schedule and automate your daily blog posts, streamlining your content creation process. Customize the workflow and script to fit your specific requirements and enjoy a more efficient and consistent blogging experience.
