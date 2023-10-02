@@ -132,7 +132,6 @@ def main():
             title = post.get("title")
             content = post.get("content")
             post_date_str = post.get("post_date")
-            print(f"{title=}")
 
             if title and content and post_date_str:
                 # Check if the title already exists
