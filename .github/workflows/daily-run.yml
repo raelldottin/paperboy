@@ -28,4 +28,4 @@ jobs:
           pip install -r requirements.txt
       - name: Automate blog posts
         run: |
-          python run.py  --client-secret ${{ secrets.CLIENT_SECRET }} --credentials-json "${{ secrets.CREDENTIALS_JSON }}" --blog-id "${{ secrets.BLOG_ID }}" --github-repo "${{ secrets.REPO }}" --json-file "${{ secrets.JSON }}"
+          python run.py  --client-secret ${{ secrets.CLIENT_SECRET }} --credentials-json ${{ secrets.CREDENTIALS_JSON }} --blog-id "${{ secrets.BLOG_ID }}" --github-repo "${{ secrets.REPO }}" --json-file "${{ secrets.JSON }}"
