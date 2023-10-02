@@ -24,4 +24,4 @@ jobs:
           pip install -r requirements.txt
       - name: Auotmate blog posts
         run: |
-          python run.py --credentials "${{ secrets.credentials }}" --json "${{ secrets.json }}" --repo "${{ secrets.repo }}"
+          python run.py  --client-secret "${{ secrets.CLIENT_SECRET }}" --credentials-json "${{ secrets.CREDENTIALS_JSON }}" --blog-id "${{ secrets.BLOG_ID }}" --github-repo "${{ secrets.REPO }}" --json-file "${{ secrets.JSON }}"
