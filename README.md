@@ -2,7 +2,7 @@
 
 This repository contains a GitHub Actions workflow and a Python script to automate the creation of daily blog posts using the Blogger API. The workflow is scheduled to run daily and publishes a new blog post at a specified time.
 
-[![Daily Automated Actions](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml/badge.svg?branch=main)](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml)
+[![Daily Automated Actions](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml/badge.svg?branch=main)](https://github.com/raelldottin/paperboy/actions/workflows/daily-run.yml) [![CodeQL](https://github.com/raelldottin/paperboy/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/raelldottin/paperboy/actions/workflows/github-code-scanning/codeql)
 
 ## GitHub Actions Workflow
 
