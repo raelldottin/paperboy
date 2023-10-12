@@ -6,6 +6,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from datetime import datetime
 import requests
+import logging
 
 # Blogger API scopes
 SCOPES = ["https://www.googleapis.com/auth/blogger"]
@@ -36,9 +37,9 @@ def create_blog_post(service, blog_id, title, content):
         posts = service.posts()
         request = posts.insert(blogId=blog_id, body=post_body)
         response = request.execute()
-        print(f'New blog post created with ID: {response["id"]}')
+        logging.info(f'New blog post created with ID: {response["id"]}')
     except Exception as e:
-        print(f"Error creating blog post: {str(e)}")
+        logging.error(f"Error creating blog post: {str(e)}")
 
 
 def get_existing_post_titles(service, blog_id):
@@ -47,7 +48,7 @@ def get_existing_post_titles(service, blog_id):
         existing_titles = set(post["title"] for post in posts.get("items", []))
         return existing_titles
     except Exception as e:
-        print(f"Error fetching existing post titles: {str(e)}")
+        logging.error(f"Error fetching existing post titles: {str(e)}")
         return set()
 
 
@@ -57,7 +58,7 @@ def get_github_file_content(repo_url, file_path):
     if response.status_code == 200:
         return response.text
     else:
-        print(f"Error fetching content from GitHub: {response.text}")
+        logging.info(f"Error fetching content from GitHub: {response.text}")
         return None
 
 
@@ -67,7 +68,7 @@ def read_json_file_from_github(repo_url, file_path):
         try:
             return json.loads(content)
         except Exception as e:
-            print(f"Error parsing JSON content: {str(e)}")
+            logging.error(f"Error parsing JSON content: {str(e)}")
 
 
 def main():
@@ -136,21 +137,21 @@ def main():
             if title and content and post_date_str:
                 # Check if the title already exists
                 if title in existing_titles:
-                    print(f'Skipping duplicate blog post with title "{title}"')
+                    logging.info(f'Skipping duplicate blog post with title "{title}"')
                 else:
                     post_date = datetime.strptime(post_date_str, "%Y-%m-%dT%H:%M:%S")
                     current_time = datetime.now()
 
                     if post_date > current_time:
                         time_difference = (post_date - current_time).total_seconds()
-                        print(
+                        logging.info(
                             f"Waiting for {time_difference} seconds until {post_date}"
                         )
 
                     else:
                         create_blog_post(blogger_service, args.blog_id, title, content)
             else:
-                print(
+                logging.info(
                     f"Skipping post with missing title, content, or post_date: {post}"
                 )
 
