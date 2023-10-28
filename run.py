@@ -12,14 +12,9 @@ import logging
 SCOPES = ["https://www.googleapis.com/auth/blogger"]
 
 
-def authenticate(scopes, client_secret, credentials_json):
+def authenticate(scopes, client_secret):
     flow = InstalledAppFlow.from_client_config(client_secret, scopes)
-    credentials = flow.run_local_server(port=0)
-
-    # Save the credentials for the next run
-    credentials_data = credentials.to_json()
-    credentials_json.write(credentials_data)
-
+    credentials = flow.run_local_server(port=54543)
     return credentials
 
 
@@ -85,47 +80,27 @@ def main():
         help="Credentials JSON as a string",
         required=True,
     )
+    parser.add_argument("--blog-id", type=str, help="Blog ID", required=True)
     parser.add_argument(
-        "--blog-id",
-        type=str,
-        help="Blog ID",
-        required=True,
+        "--github-repo", type=str, help="GitHub repository URL", required=True
     )
     parser.add_argument(
-        "--github-repo",
-        type=str,
-        help="GitHub repository URL",
-        required=True,
+        "--json-file", type=str, help="JSON file with pending blog posts", required=True
     )
-    parser.add_argument(
-        "--json-file",
-        type=str,
-        help="JSON file with pending blog posts",
-        required=True,
-    )
-
     args = parser.parse_args()
 
-    credentials_data = StringIO()
     if "token" in args.credentials_json:
-        # For OAuth 2.0 credentials
-        credentials_data.write(json.dumps(args.credentials_json))
+        credentials = Credentials.from_authorized_user_info(
+            args.credentials_json, SCOPES
+        )
     else:
-        # For service account credentials
-        json.dump(args.credentials_json, credentials_data)
-
-    credentials_data.seek(0)
-    credentials = Credentials.from_authorized_user_info(
-        json.loads(credentials_data.read()), SCOPES
-    )
+        credentials = authenticate(SCOPES, args.client_secret)
 
     # Initialize the Blogger API client
     blogger_service = build("blogger", "v3", credentials=credentials)
 
     # Get JSON data from GitHub repo
-    github_repo = args.github_repo
-    json_file = args.json_file
-    json_data = read_json_file_from_github(github_repo, json_file)
+    json_data = read_json_file_from_github(args.github_repo, args.json_file)
 
     if json_data is not None and "posts" in json_data:
         existing_titles = get_existing_post_titles(blogger_service, args.blog_id)
@@ -135,20 +110,13 @@ def main():
             post_date_str = post.get("post_date")
 
             if title and content and post_date_str:
-                # Check if the title already exists
                 if title in existing_titles:
                     logging.info(f'Skipping duplicate blog post with title "{title}"')
                 else:
                     post_date = datetime.strptime(post_date_str, "%Y-%m-%dT%H:%M:%S")
                     current_time = datetime.now()
 
-                    if post_date > current_time:
-                        time_difference = (post_date - current_time).total_seconds()
-                        logging.info(
-                            f"Waiting for {time_difference} seconds until {post_date}"
-                        )
-
-                    else:
+                    if post_date <= current_time:
                         create_blog_post(blogger_service, args.blog_id, title, content)
             else:
                 logging.info(
